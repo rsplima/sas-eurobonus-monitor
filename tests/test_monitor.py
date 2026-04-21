@@ -11,7 +11,7 @@ def make_trip(alert_mode: str, has_return: bool = True) -> Trip:
 
 
 def make_flight(d: date = date(2024, 12, 16)) -> Flight:
-    return Flight(date=d, airline="Air France", cabin="Economy", points=45000, via="CDG")
+    return Flight(date=d, origin="ARN", destination="GIG", airline="Air France", cabin="Economy", points=45000, via="CDG")
 
 
 def test_complete_trip_both_legs_found():

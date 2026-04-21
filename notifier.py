@@ -13,6 +13,14 @@ def format_subject(trip_name: str) -> str:
     return f"[SAS Monitor] Seats available — {trip_name}"
 
 
+AWARD_FINDER_URL = "https://www.sas.se/award-finder"
+
+
+def _search_link(origin: str, destination: str, d) -> str:
+    date_str = d.strftime("%Y-%m-%d")
+    return f"{AWARD_FINDER_URL}?fromCity={origin}&toCity={destination}&departure={date_str}&tripType=ROUNDTRIP"
+
+
 def format_email_body(trip_name: str, outbound: List[Flight], returns: List[Flight]) -> str:
     lines = [f"SAS Eurobonus monitor found available seats for: {trip_name}", ""]
 
@@ -21,6 +29,7 @@ def format_email_body(trip_name: str, outbound: List[Flight], returns: List[Flig
         for f in outbound:
             via = f" via {f.via}" if f.via else ""
             lines.append(f"  * {f.date.strftime('%b %d')} — {f.airline}{via} — {f.cabin} — {f.points:,} pts")
+            lines.append(f"    {_search_link(f.origin, f.destination, f.date)}")
 
     if returns:
         lines.append("")
@@ -28,6 +37,7 @@ def format_email_body(trip_name: str, outbound: List[Flight], returns: List[Flig
         for f in returns:
             via = f" via {f.via}" if f.via else ""
             lines.append(f"  * {f.date.strftime('%b %d')} — {f.airline}{via} — {f.cabin} — {f.points:,} pts")
+            lines.append(f"    {_search_link(f.origin, f.destination, f.date)}")
 
     lines.append("")
     if outbound and returns:

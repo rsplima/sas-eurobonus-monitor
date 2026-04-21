@@ -3,8 +3,8 @@ from scraper import Flight
 from notifier import format_email_body, format_subject
 
 
-def make_flight(d: date, airline: str, cabin: str, points: int, via: str) -> Flight:
-    return Flight(date=d, airline=airline, cabin=cabin, points=points, via=via)
+def make_flight(d: date, airline: str, cabin: str, points: int, via: str, origin: str = "ARN", destination: str = "GIG") -> Flight:
+    return Flight(date=d, origin=origin, destination=destination, airline=airline, cabin=cabin, points=points, via=via)
 
 
 def test_subject_contains_trip_name():
@@ -39,9 +39,18 @@ def test_body_shows_complete_trip_message():
 
 
 def test_body_no_via_when_none():
-    flights = [Flight(date=date(2024, 12, 16), airline="SAS", cabin="Economy", points=30000, via=None)]
+    flights = [Flight(date=date(2024, 12, 16), origin="ARN", destination="GIG", airline="SAS", cabin="Economy", points=30000, via=None)]
     body = format_email_body("Test", flights, [])
     assert "None" not in body
+
+
+def test_body_contains_search_link():
+    flights = [make_flight(date(2024, 12, 16), "Air France", "Economy", 45000, "CDG")]
+    body = format_email_body("ARN -> GIG December", flights, [])
+    assert "award-finder" in body
+    assert "fromCity=ARN" in body
+    assert "toCity=GIG" in body
+    assert "departure=2024-12-16" in body
 
 
 def test_body_multiple_outbound_flights():

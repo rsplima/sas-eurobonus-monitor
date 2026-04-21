@@ -32,6 +32,8 @@ SESSION_COOKIE_PATH = os.path.expanduser("~/.sas_session.json")
 @dataclass
 class Flight:
     date: date
+    origin: str
+    destination: str
     airline: str
     cabin: str
     points: int
@@ -291,7 +293,7 @@ def _navigate_to_date_tab(page, table_testid: str, search_date: date) -> bool:
     return False
 
 
-def _extract_flights(page, table_testid: str, search_date: date) -> List[Flight]:
+def _extract_flights(page, table_testid: str, origin: str, destination: str, search_date: date) -> List[Flight]:
     """
     Extract flight data from the outbound or inbound flights table.
     Returns a list of Flight objects (may be empty).
@@ -314,7 +316,7 @@ def _extract_flights(page, table_testid: str, search_date: date) -> List[Flight]
         if cards:
             logger.debug(f"Found {len(cards)} flight cards with testid={testid_suffix!r}")
             for card in cards:
-                flight = _parse_flight_card(card, search_date)
+                flight = _parse_flight_card(card, origin, destination, search_date)
                 if flight:
                     flights.append(flight)
             if flights:
@@ -333,7 +335,7 @@ def _extract_flights(page, table_testid: str, search_date: date) -> List[Flight]
                 text = child.inner_text().strip()
                 if not text or "Vi kunde inte hitta" in text:
                     continue
-                flight = _parse_flight_text(text, search_date)
+                flight = _parse_flight_text(text, origin, destination, search_date)
                 if flight:
                     flights.append(flight)
             except Exception:
@@ -343,16 +345,16 @@ def _extract_flights(page, table_testid: str, search_date: date) -> List[Flight]
     return flights
 
 
-def _parse_flight_card(element, search_date: date) -> Optional[Flight]:
+def _parse_flight_card(element, origin: str, destination: str, search_date: date) -> Optional[Flight]:
     """Parse a single flight card element into a Flight dataclass."""
     try:
         text = element.inner_text()
-        return _parse_flight_text(text, search_date)
+        return _parse_flight_text(text, origin, destination, search_date)
     except Exception:
         return None
 
 
-def _parse_flight_text(text: str, search_date: date) -> Optional[Flight]:
+def _parse_flight_text(text: str, origin: str, destination: str, search_date: date) -> Optional[Flight]:
     """
     Parse flight text to extract airline, cabin, and points.
     Expected format varies but typically contains:
@@ -425,6 +427,8 @@ def _parse_flight_text(text: str, search_date: date) -> Optional[Flight]:
 
     return Flight(
         date=search_date,
+        origin=origin,
+        destination=destination,
         airline=airline,
         cabin=cabin,
         points=points,
@@ -519,7 +523,7 @@ def _run_search(origin: str, destination: str, search_date: date) -> List[Flight
                 return []
 
             # Extract flights
-            flights = _extract_flights(page, outbound_testid, search_date)
+            flights = _extract_flights(page, outbound_testid, origin, destination, search_date)
             logger.info(f"Found {len(flights)} flights for {origin}->{destination} on {date_str}")
 
             time.sleep(3)  # Polite delay to server
