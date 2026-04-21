@@ -22,10 +22,10 @@ def search_flights(origin: str, destination: str, search_date: date) -> List[Fli
         try:
             return _run_search(origin, destination, search_date)
         except Exception as e:
-            logger.warning(f"Attempt {attempt + 1} failed for {origin}→{destination} {search_date}: {e}")
+            logger.warning(f"Attempt {attempt + 1} failed for {origin}->{destination} {search_date}: {e}")
             if attempt < 2:
                 time.sleep(5)
-    logger.error(f"All attempts failed for {origin}→{destination} {search_date}")
+    logger.error(f"All attempts failed for {origin}->{destination} {search_date}")
     return []
 
 
