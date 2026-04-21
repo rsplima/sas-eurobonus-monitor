@@ -10,6 +10,7 @@ from typing import List, Optional
 import json
 import logging
 import os
+import re
 import time
 
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeout
@@ -25,7 +26,6 @@ SWEDISH_MONTHS = {
 
 # Page URLs
 AWARD_FINDER_URL = "https://www.sas.se/award-finder"
-AUTH_URL = "https://auth.flysas.com/u/login/identifier"
 SESSION_COOKIE_PATH = os.path.expanduser("~/.sas_session.json")
 
 
@@ -259,21 +259,23 @@ def _navigate_to_date_tab(page, table_testid: str, search_date: date) -> bool:
                 next_btn = btn.first
                 break
 
-        # Also try structural selectors - last li in the date nav should have a "next" button
+        # Fallback: find buttons with no text and no aria-label adjacent to the tab list.
+        # The next-arrow is typically an icon-only button; skip any with discernible labels.
         if next_btn is None:
-            # Try to find prev/next in the date nav ul
-            nav_ul = table.locator("ul")
-            # Get buttons around the ul (siblings)
             all_btns = table.locator("button").all()
-            # The next button is often to the right of the ul
+            unlabelled = []
             for btn in all_btns:
                 try:
-                    aria = btn.get_attribute("aria-label") or ""
+                    aria = (btn.get_attribute("aria-label") or "").strip()
                     btn_text = btn.inner_text().strip()
                     if not btn_text and not aria:
-                        next_btn = btn
+                        unlabelled.append(btn)
                 except Exception:
                     pass
+            # Require exactly 2 unlabelled buttons (prev + next); pick the second one.
+            # If the count is unexpected, skip rather than clicking the wrong element.
+            if len(unlabelled) == 2:
+                next_btn = unlabelled[1]
 
         if next_btn is None:
             logger.debug("No next button found in date slider")
@@ -299,12 +301,6 @@ def _extract_flights(page, table_testid: str, search_date: date) -> List[Flight]
     if table.count() == 0:
         return flights
 
-    # Check for "no results" message
-    table_text = table.inner_text()
-    if "Vi kunde inte hitta några flygningar" in table_text:
-        logger.debug(f"No flights found in {table_testid}")
-        return flights
-
     # Look for flight cards/rows in the table
     # Based on DOM inspection: flight cards are inside the table's content div
     # after the date tabs (ul). We look for structural elements that represent flights.
@@ -327,8 +323,9 @@ def _extract_flights(page, table_testid: str, search_date: date) -> List[Flight]
     # Fallback: look for li elements inside the results area (below the date tab ul)
     # The table has: ul (date tabs) + div (results)
     # Get the div after the ul
-    result_div = table.locator("ul + div, ul ~ div").first
-    if result_div.count() > 0:
+    result_div_locator = table.locator("ul + div, ul ~ div")
+    if result_div_locator.count() > 0:
+        result_div = result_div_locator.first
         # Look for flight-like children
         children = result_div.locator("> *, li, article, section").all()
         for child in children:
@@ -364,14 +361,13 @@ def _parse_flight_text(text: str, search_date: date) -> Optional[Flight]:
     - Points amount (e.g., "45 000 poäng" or "45,000")
     - Optional via city (e.g., "via Frankfurt")
     """
-    import re
-
     text = text.strip()
     if not text:
         return None
 
-    # Extract points — look for numbers followed by "poäng" or "p"
-    # SAS uses space-separated thousands: "45 000 poäng" or "45 000p"
+    # Extract points — look for numbers followed by "poäng" or "p".
+    # SAS uses space-separated thousands: "45 000 poäng" or "45 000p".
+    # Spaces may be regular (U+0020) or non-breaking (U+00A0).
     points_match = re.search(
         r'(\d[\d\s ]+)\s*(?:poäng|p\b)',
         text,
