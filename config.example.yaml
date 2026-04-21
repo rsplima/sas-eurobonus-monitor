@@ -1,0 +1,18 @@
+trips:
+  - name: "ARN → GIG December"
+    outbound:
+      origin: ARN
+      destination: GIG
+      date_from: 2024-12-14
+      date_to: 2024-12-21
+    return:
+      origin: GIG
+      destination: ARN
+      date_from: 2025-01-10
+      date_to: 2025-01-16
+    alert_mode: complete_trip   # complete_trip | any_leg
+
+email:
+  sender: your@gmail.com
+  recipient: your@gmail.com
+  # Set env var SMTP_PASSWORD to your Gmail app password
