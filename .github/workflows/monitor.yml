@@ -1,0 +1,35 @@
+name: SAS Eurobonus Monitor
+
+on:
+  schedule:
+    - cron: '0 7 * * *'  # 07:00 UTC = 09:00 CEST / 08:00 CET
+  workflow_dispatch:      # allow manual trigger from GitHub UI
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install Playwright Chromium
+        run: playwright install chromium --with-deps
+
+      - name: Write config
+        run: echo "$CONFIG_YAML" > config.yaml
+        env:
+          CONFIG_YAML: ${{ secrets.CONFIG_YAML }}
+
+      - name: Run monitor
+        env:
+          SAS_USERNAME: ${{ secrets.SAS_USERNAME }}
+          SAS_PASSWORD: ${{ secrets.SAS_PASSWORD }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+        run: python monitor.py
